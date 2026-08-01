@@ -92,11 +92,11 @@ static float SampleTerrainHeight(float worldX, float worldZ)
 {
     // Combine several value-noise octaves to create a richer terrain height field.
 
-    const float frequency = 0.03f;  // how often the noise pattern repeats in world space
-    const float amplitude = 1.0f;   // how strong the noise is (before scaling to height)
-    const float persistence = 0.5f; // how quickly the amplitude decreases for each octave
-    const int octaves = 1;          // how many layers of noise to combine
-    const float heightScale = 6.0f; // how much to scale the final height value
+    const float frequency = 0.04f;  // how often the noise pattern repeats in world space
+    const float amplitude = 1.2f;   // how strong the noise is (before scaling to height)
+    const float persistence = 0.7f; // how quickly the amplitude decreases for each octave
+    const int octaves = 3;          // how many layers of noise to combine
+    const float heightScale = 4.0f; // how much to scale the final height value
 
     float total = 0.0f;
     float layerAmplitude = amplitude;
