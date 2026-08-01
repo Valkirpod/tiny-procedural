@@ -33,6 +33,8 @@ static Camera3D camera = { 0 };
 static TerrainChunk chunks[CHUNK_GRID_W][CHUNK_GRID_H];
 
 static Material planeMaterial = { 0 };
+static Texture2D terrainTexture = { 0 };
+
 static bool debugShow = false;
 
 //----------------------------------------------------------------------------------
@@ -174,6 +176,34 @@ static void GenerateChunk(int cx, int cz)
     }
 }
 
+static void CreateTerrainTexture(void)
+{
+    Image image = GenImageColor(256, 256, (Color){ 58, 102, 48, 255 });
+
+    for (int y = 0; y < 256; y++)
+    {
+        for (int x = 0; x < 256; x++)
+        {
+            int tx = x / 32;
+            int ty = y / 32;
+            int checker = ((tx + ty) & 1) ? 1 : 0;
+
+            if (checker)
+            {
+                ImageDrawPixel(&image, x, y, (Color){ 72, 124, 60, 255 });
+            }
+            else
+            {
+                ImageDrawPixel(&image, x, y, (Color){ 46, 84, 38, 255 });
+            }
+        }
+    }
+
+    terrainTexture = LoadTextureFromImage(image);
+    SetTextureFilter(terrainTexture, TEXTURE_FILTER_BILINEAR);
+    UnloadImage(image);
+}
+
 static void DrawChunkBoundaries(void)
 {
     Color boundaryColor = Fade(GOLD, 0.85f);
@@ -204,7 +234,9 @@ void InitGameplayScreen(void)
     camera.projection = CAMERA_PERSPECTIVE;
 
     planeMaterial = LoadMaterialDefault();
-    planeMaterial.maps[MATERIAL_MAP_ALBEDO].color = LIME;
+    CreateTerrainTexture();
+    planeMaterial.maps[MATERIAL_MAP_ALBEDO].texture = terrainTexture;
+    planeMaterial.maps[MATERIAL_MAP_ALBEDO].color = WHITE;
 
     for (int cx = 0; cx < CHUNK_GRID_W; cx++)
         for (int cz = 0; cz < CHUNK_GRID_H; cz++)
@@ -278,6 +310,10 @@ void UnloadGameplayScreen(void)
         }
     }
     UnloadMaterial(planeMaterial);
+    if (terrainTexture.id > 0)
+    {
+        UnloadTexture(terrainTexture);
+    }
 }
 
 int FinishGameplayScreen(void)
