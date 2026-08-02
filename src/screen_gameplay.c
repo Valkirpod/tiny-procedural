@@ -36,6 +36,7 @@ static Material planeMaterial = { 0 };
 static Texture2D terrainTexture = { 0 };
 
 static bool debugShow = false;
+static bool wireframeShow = false;
 
 //----------------------------------------------------------------------------------
 // Helper Functions
@@ -50,6 +51,24 @@ static float GetRAMUsageMB(void)
         }
     #endif
     return 0.0f;
+}
+
+static void DrawChunkBoundaries(void)
+{
+    Color boundaryColor = Fade(GOLD, 0.85f);
+    float height = 50.0f;
+
+    for (int cx = 0; cx < CHUNK_GRID_W; cx++)
+    {
+        for (int cz = 0; cz < CHUNK_GRID_H; cz++)
+        {
+            TerrainChunk *chunk = &chunks[cx][cz];
+            Vector3 center = { chunk->worldOffset.x, height/2.0f, chunk->worldOffset.z };
+            Vector3 size = { CHUNK_SIZE, height, CHUNK_SIZE };
+
+            DrawCubeWires(center, size.x, size.y, size.z, boundaryColor);
+        }
+    }
 }
 
 //----------------------------------------------------------------------------------
@@ -204,24 +223,6 @@ static void CreateTerrainTexture(void)
     UnloadImage(image);
 }
 
-static void DrawChunkBoundaries(void)
-{
-    Color boundaryColor = Fade(GOLD, 0.85f);
-    float height = 50.0f;
-
-    for (int cx = 0; cx < CHUNK_GRID_W; cx++)
-    {
-        for (int cz = 0; cz < CHUNK_GRID_H; cz++)
-        {
-            TerrainChunk *chunk = &chunks[cx][cz];
-            Vector3 center = { chunk->worldOffset.x, height/2.0f, chunk->worldOffset.z };
-            Vector3 size = { CHUNK_SIZE, height, CHUNK_SIZE };
-
-            DrawCubeWires(center, size.x, size.y, size.z, boundaryColor);
-        }
-    }
-}
-
 //----------------------------------------------------------------------------------
 // Gameplay Screen Functions
 //----------------------------------------------------------------------------------
@@ -256,7 +257,14 @@ void UpdateGameplayScreen(void)
     if (IsKeyPressed(KEY_F1))
     {
         debugShow = !debugShow;
+        wireframeShow = false;
         TraceLog(LOG_INFO, "Debug overlay %s", debugShow ? "ON" : "OFF");
+    }
+
+    if (IsKeyPressed(KEY_L) && debugShow)
+    {
+        wireframeShow = !wireframeShow;
+        TraceLog(LOG_INFO, "Wireframe mode %s", wireframeShow ? "ON" : "OFF");
     }
 }
 
@@ -265,7 +273,7 @@ void DrawGameplayScreen(void)
     ClearBackground(RAYWHITE);
 
     BeginMode3D(camera);
-        if (debugShow)
+        if (wireframeShow)
         {
             rlEnableWireMode();
         }
@@ -279,7 +287,7 @@ void DrawGameplayScreen(void)
             }
         }
         
-        if (debugShow)
+        if (wireframeShow)
         {
             rlDisableWireMode();
             DrawChunkBoundaries();
@@ -296,6 +304,10 @@ void DrawGameplayScreen(void)
         DrawText(TextFormat("FPS: %d", fps), 20, GetScreenHeight() - 80, 20, LIME);
         DrawText(TextFormat("Frame: %.2f ms", frameTime), 20, GetScreenHeight() - 55, 20, RAYWHITE);
         DrawText(TextFormat("RAM: %.1f MB", ramMB), 20, GetScreenHeight() - 30, 20, SKYBLUE);
+
+        DrawRectangle(10, GetScreenHeight() - 90 - 80 - 5, 260, 80, Fade(BLACK, 0.7f));
+        DrawText(TextFormat("Debug Controls:"), 20, GetScreenHeight() - 90 - 80 - 5 + 10, 20, GRAY);
+        DrawText(TextFormat("   L - Wireframe: %s", wireframeShow ? "ON" : "OFF"), 20, GetScreenHeight() - 90 - 80 - 5 + 35, 20, GRAY);
     };
 }
 
