@@ -12,11 +12,13 @@
 #include "raymath.h"
 
 #include "terrain.h"
+#include "player.h"
 
 //----------------------------------------------------------------------------------
 // Local Variables
 //----------------------------------------------------------------------------------
 static Camera3D camera = { 0 };
+static Player player;
 
 static bool debugShow = false;
 static bool wireframeShow = false;
@@ -48,17 +50,13 @@ void InitGameplayScreen(void)
     camera.projection = CAMERA_PERSPECTIVE;
 
     InitTerrain();
+    InitPlayer(&player, (Vector3){ 0.0f, 10.0f, 0.0f });
 }
 
 void UpdateGameplayScreen(void)
 {
-    UpdateCamera(&camera, CAMERA_FREE);
-
-    if (IsKeyPressed(KEY_R))
-    {
-        camera.position = (Vector3){ 0.0f, 2.0f, 5.0f };
-        camera.target   = (Vector3){ 0.0f, 0.0f, 0.0f };
-    }
+    UpdatePlayer(&player);
+    camera = GetPlayerCamera(&player);
 
     if (IsKeyPressed(KEY_F1))
     {
@@ -99,7 +97,6 @@ void DrawGameplayScreen(void)
         float ramMB = GetRAMUsageMB();
 
         DrawRectangle(10, GetScreenHeight() - 90, 260, 80, Fade(BLACK, 0.7f));
-
         DrawText(TextFormat("FPS: %d", fps), 20, GetScreenHeight() - 80, 20, LIME);
         DrawText(TextFormat("Frame: %.2f ms", frameTime), 20, GetScreenHeight() - 55, 20, RAYWHITE);
         DrawText(TextFormat("RAM: %.1f MB", ramMB), 20, GetScreenHeight() - 30, 20, SKYBLUE);
@@ -107,6 +104,11 @@ void DrawGameplayScreen(void)
         DrawRectangle(10, GetScreenHeight() - 90 - 80 - 5, 260, 80, Fade(BLACK, 0.7f));
         DrawText(TextFormat("Debug Controls:"), 20, GetScreenHeight() - 90 - 80 - 5 + 10, 20, GRAY);
         DrawText(TextFormat("   L - Wireframe: %s", wireframeShow ? "ON" : "OFF"), 20, GetScreenHeight() - 90 - 80 - 5 + 35, 20, GRAY);
+
+        DrawRectangle(260 + 20, GetScreenHeight() - 90, 280, 80, Fade(BLACK, 0.7f));
+        DrawText(TextFormat("X: %.2f, Y: %.2f, Z: %.2f", player.position.x, player.position.y, player.position.z), 260 + 30, GetScreenHeight() - 90 + 10, 20, LIGHTGRAY);
+        DrawText(TextFormat("Grounded: %s", player.grounded ? "YES" : "NO"), 260 + 30, GetScreenHeight() - 90 + 35, 20, LIGHTGRAY);
+        DrawText(TextFormat("Air Time: %.2f s", player.air_time), 260 + 30, GetScreenHeight() - 90 + 60, 20, LIGHTGRAY);
     };
 }
 
