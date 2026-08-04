@@ -1,80 +1,123 @@
-/**********************************************************************************************
-*
-*   raylib - Advance Game template
-*
-*   Gameplay Screen Functions Definitions (Init, Update, Draw, Unload)
-*
-*   Copyright (c) 2014-2022 Ramon Santamaria (@raysan5)
-*
-*   This software is provided "as-is", without any express or implied warranty. In no event
-*   will the authors be held liable for any damages arising from the use of this software.
-*
-*   Permission is granted to anyone to use this software for any purpose, including commercial
-*   applications, and to alter it and redistribute it freely, subject to the following restrictions:
-*
-*     1. The origin of this software must not be misrepresented; you must not claim that you
-*     wrote the original software. If you use this software in a product, an acknowledgment
-*     in the product documentation would be appreciated but is not required.
-*
-*     2. Altered source versions must be plainly marked as such, and must not be misrepresented
-*     as being the original software.
-*
-*     3. This notice may not be removed or altered from any source distribution.
-*
-**********************************************************************************************/
+// Prevent Windows headers from conflicting with raylib
+#if defined(_WIN32)
+    #define WIN32_LEAN_AND_MEAN
+    #define NOGDI
+    #define NOUSER
+    #include <windows.h>
+    #include <psapi.h>
+#endif
 
 #include "raylib.h"
 #include "screens.h"
+#include "raymath.h"
+
+#include "terrain.h"
+#include "player.h"
 
 //----------------------------------------------------------------------------------
-// Module Variables Definition (local)
+// Local Variables
 //----------------------------------------------------------------------------------
-static int framesCounter = 0;
-static int finishScreen = 0;
+static Camera3D camera = { 0 };
+static Player player;
+
+static bool debugShow = false;
+static bool wireframeShow = false;
 
 //----------------------------------------------------------------------------------
-// Gameplay Screen Functions Definition
+// Helper Functions
 //----------------------------------------------------------------------------------
-
-// Gameplay Screen Initialization logic
-void InitGameplayScreen(void)
+static float GetRAMUsageMB(void)
 {
-    // TODO: Initialize GAMEPLAY screen variables here!
-    framesCounter = 0;
-    finishScreen = 0;
+    #if defined(_WIN32)
+        PROCESS_MEMORY_COUNTERS_EX pmc;
+        if (GetProcessMemoryInfo(GetCurrentProcess(), (PROCESS_MEMORY_COUNTERS*)&pmc, sizeof(pmc)))
+        {
+            return (float)pmc.PrivateUsage / (1024.0f * 1024.0f);
+        }
+    #endif
+    return 0.0f;
 }
 
-// Gameplay Screen Update logic
+//----------------------------------------------------------------------------------
+// Gameplay Screen Functions
+//----------------------------------------------------------------------------------
+void InitGameplayScreen(void)
+{
+    camera.position = (Vector3){ 0.0f, 2.0f, 5.0f };
+    camera.target   = (Vector3){ 0.0f, 0.0f, 0.0f };
+    camera.up       = (Vector3){ 0.0f, 1.0f, 0.0f };
+    camera.fovy     = 75.0f;
+    camera.projection = CAMERA_PERSPECTIVE;
+
+    InitTerrain();
+    InitPlayer(&player, (Vector3){ 0.0f, 10.0f, 0.0f });
+}
+
 void UpdateGameplayScreen(void)
 {
-    // TODO: Update GAMEPLAY screen variables here!
+    UpdatePlayer(&player);
+    camera = GetPlayerCamera(&player);
 
-    // Press enter or tap to change to ENDING screen
-    if (IsKeyPressed(KEY_ENTER) || IsGestureDetected(GESTURE_TAP))
+    if (IsKeyPressed(KEY_F1))
     {
-        finishScreen = 1;
-        PlaySound(fxCoin);
+        debugShow = !debugShow;
+        wireframeShow = false;
+        TraceLog(LOG_INFO, "Debug overlay %s", debugShow ? "ON" : "OFF");
+    }
+
+    if (IsKeyPressed(KEY_L) && debugShow)
+    {
+        wireframeShow = !wireframeShow;
+        TraceLog(LOG_INFO, "Wireframe mode %s", wireframeShow ? "ON" : "OFF");
     }
 }
 
-// Gameplay Screen Draw logic
 void DrawGameplayScreen(void)
 {
-    // TODO: Draw GAMEPLAY screen here!
-    DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), PURPLE);
-    Vector2 pos = { 20, 10 };
-    DrawTextEx(font, "GAMEPLAY SCREEN", pos, font.baseSize*3.0f, 4, MAROON);
-    DrawText("PRESS ENTER or TAP to JUMP to ENDING SCREEN", 130, 220, 20, MAROON);
+    ClearBackground(RAYWHITE);
+
+    BeginMode3D(camera);
+        if (wireframeShow)
+        {
+            rlEnableWireMode();
+        }
+
+        DrawTerrain(wireframeShow);
+        
+        if (wireframeShow)
+        {
+            rlDisableWireMode();
+            DrawChunkBoundaries();
+        }
+    EndMode3D();
+
+    if (debugShow) {
+        int fps = GetFPS();
+        float frameTime = GetFrameTime() * 1000.0f;
+        float ramMB = GetRAMUsageMB();
+
+        DrawRectangle(10, GetScreenHeight() - 90, 260, 80, Fade(BLACK, 0.7f));
+        DrawText(TextFormat("FPS: %d", fps), 20, GetScreenHeight() - 80, 20, LIME);
+        DrawText(TextFormat("Frame: %.2f ms", frameTime), 20, GetScreenHeight() - 55, 20, RAYWHITE);
+        DrawText(TextFormat("RAM: %.1f MB", ramMB), 20, GetScreenHeight() - 30, 20, SKYBLUE);
+
+        DrawRectangle(10, GetScreenHeight() - 90 - 80 - 5, 260, 80, Fade(BLACK, 0.7f));
+        DrawText(TextFormat("Debug Controls:"), 20, GetScreenHeight() - 90 - 80 - 5 + 10, 20, GRAY);
+        DrawText(TextFormat("   L - Wireframe: %s", wireframeShow ? "ON" : "OFF"), 20, GetScreenHeight() - 90 - 80 - 5 + 35, 20, GRAY);
+
+        DrawRectangle(260 + 20, GetScreenHeight() - 90, 280, 80, Fade(BLACK, 0.7f));
+        DrawText(TextFormat("X: %.2f, Y: %.2f, Z: %.2f", player.position.x, player.position.y, player.position.z), 260 + 30, GetScreenHeight() - 90 + 10, 20, LIGHTGRAY);
+        DrawText(TextFormat("Grounded: %s", player.grounded ? "YES" : "NO"), 260 + 30, GetScreenHeight() - 90 + 35, 20, LIGHTGRAY);
+        DrawText(TextFormat("Air Time: %.2f s", player.air_time), 260 + 30, GetScreenHeight() - 90 + 60, 20, LIGHTGRAY);
+    };
 }
 
-// Gameplay Screen Unload logic
 void UnloadGameplayScreen(void)
 {
-    // TODO: Unload GAMEPLAY screen variables here!
+    UnloadTerrain();
 }
 
-// Gameplay Screen should finish?
 int FinishGameplayScreen(void)
 {
-    return finishScreen;
+    return 0;
 }

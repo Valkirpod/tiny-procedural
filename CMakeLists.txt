@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.24...3.30)
 project(raylib-game-template)
 
+# Use static runtime so users don't need Visual C++ Redistributable
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+
 include(FetchContent)
 
 # Generate compile_commands.json
@@ -8,6 +11,10 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Dependencies
 set(RAYLIB_VERSION 6.0)
+
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(BUILD_GAMES OFF CACHE BOOL "" FORCE)
 
 FetchContent_Declare(
     raylib
