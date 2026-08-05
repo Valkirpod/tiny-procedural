@@ -18,6 +18,36 @@ static TerrainChunk chunks[CHUNK_GRID_W][CHUNK_GRID_H];
 static Material planeMaterial = { 0 };
 static Texture2D terrainTexture = { 0 };
 
+// biomes
+
+typedef enum {
+    BIOME_PLAINS,
+    BIOME_HILLS,
+    BIOME_MOUNTAINS,
+    BIOME_COUNT
+} BiomeType;
+
+typedef struct {
+    float frequency;
+    float persistence;
+    int   octaves;
+    float heightScale;
+} BiomeParams;
+
+static const BiomeParams biomeTable[BIOME_COUNT] = {
+    //freq      persist oct heightScale
+    { 0.02f,    0.6f,   2,  3.8f },
+    { 0.03f,    0.7f,   3,  4.5f },
+    { 0.015f,    0.95f,  6,  8.0f },
+};
+
+static const BiomeType biomeLookup[3][3] = {
+    // dry              temperate         wet
+    { BIOME_MOUNTAINS, BIOME_HILLS,  BIOME_HILLS  }, // cold
+    { BIOME_PLAINS,    BIOME_HILLS,  BIOME_HILLS  }, // temperate
+    { BIOME_PLAINS,    BIOME_PLAINS, BIOME_HILLS  }, // hot
+};
+
 //----------------------------------------------------------------------------------
 // Noise
 //----------------------------------------------------------------------------------
@@ -56,29 +86,49 @@ static float SampleValueNoise2D(float x, float z)
     return a + tz * (b - a);
 }
 
-float SampleTerrainHeight(float worldX, float worldZ)
+// 
+
+static float SampleHeightWithParams(float worldX, float worldZ, const BiomeParams *p)
 {
-    // Combine several value-noise octaves to create a richer terrain height field.
-
-    const float frequency = 0.04f;  // how often the noise pattern repeats in world space
-    const float amplitude = 1.2f;   // how strong the noise is (before scaling to height)
-    const float persistence = 0.7f; // how quickly the amplitude decreases for each octave
-    const int octaves = 3;          // how many layers of noise to combine
-    const float heightScale = 4.0f; // how much to scale the final height value
-
-    float total = 0.0f;
-    float layerAmplitude = amplitude;
-    float layerFrequency = frequency;
-
-    for (int octave = 0; octave < octaves; octave++)
+    float total = 0.0f, amp = 1.0, freq = p->frequency;
+    for (int o = 0; o < p->octaves; o++)
     {
-        total += SampleValueNoise2D(worldX * layerFrequency, worldZ * layerFrequency) * layerAmplitude;
-
-        layerAmplitude *= persistence;
-        layerFrequency *= 2.0f;
+        total += SampleValueNoise2D(worldX * freq, worldZ * freq) * amp;
+        amp *= p->persistence;
+        freq *= 2.0f;
     }
+    return total * p->heightScale;
+}
 
-    return total * heightScale;
+static float SampleTemperatureNoise(float worldX, float worldZ)
+{
+    const float freq = 0.006f;
+    return SampleValueNoise2D(worldX * freq + 1000.0f, worldZ * freq + 1000.0f);
+}
+
+static float SampleMoistureNoise(float worldX, float worldZ)
+{
+    const float freq = 0.006f;
+    return SampleValueNoise2D(worldX * freq + 5000.0f, worldZ * freq + 5000.0f);
+}
+
+// 
+
+static int GetBucket(float value, int bucketCount)
+{
+    int b = (int)(value * bucketCount);
+    if (b >= bucketCount) b = bucketCount - 1;
+    if (b < 0) b = 0;
+    return b;
+}
+
+float GetTerrainHeight(float worldX, float worldZ)
+{
+    float temp = SampleTemperatureNoise(worldX, worldZ);
+    float moist = SampleMoistureNoise(worldX, worldZ);
+
+    BiomeType biome = biomeLookup[GetBucket(temp, 3)][GetBucket(moist, 3)];
+    return SampleHeightWithParams(worldX, worldZ, &biomeTable[biome]);
 }
 
 //----------------------------------------------------------------------------------
@@ -131,7 +181,7 @@ static void GenerateChunk(int cx, int cz)
         float worldX = localX + chunk->worldOffset.x;
         float worldZ = localZ + chunk->worldOffset.z;
 
-        float h = SampleTerrainHeight(worldX, worldZ);
+        float h = GetTerrainHeight(worldX, worldZ);
         chunk->heights[i] = h;
         chunk->mesh.vertices[i * 3 + 1] = h;
     }

@@ -8,6 +8,6 @@ void InitTerrain(void);
 void DrawTerrain(bool wireframe);
 void DrawTerrainChunkBoundaries(void);
 void UnloadTerrain(void);
-float SampleTerrainHeight(float worldX, float worldZ);
+float GetTerrainHeight(float worldX, float worldZ);
 
 #endif

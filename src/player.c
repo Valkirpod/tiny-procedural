@@ -123,7 +123,7 @@ void UpdatePlayer(Player *player)
     player->position = Vector3Add(player->position, Vector3Scale(player->velocity, dt));
 
     // ground colllision and snapping
-    float groundY = SampleTerrainHeight(player->position.x, player->position.z) + EYE_HEIGHT;
+    float groundY = GetTerrainHeight(player->position.x, player->position.z) + EYE_HEIGHT;
     float distanceToGround = player->position.y - groundY;
 
     if (distanceToGround <= 0.0f || distanceToGround <= SNAP_DISTANCE && player->grounded)
