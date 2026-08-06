@@ -2,6 +2,7 @@
 #include "raymath.h"
 #include "rlgl.h"
 #include "texture.h"
+#include "noise.h"
 
 #define CHUNK_GRID_W 32
 #define CHUNK_GRID_H 32
@@ -57,49 +58,13 @@ static const BiomeType biomeLookup[3][3] = {
 //----------------------------------------------------------------------------------
 // Noise
 //----------------------------------------------------------------------------------
-static float HashGridValue(int x, int z, unsigned int seed)
-{
-    // Deterministic hash of integer grid coordinates for cheap value-noise generation.
-
-    unsigned int h = (unsigned int)(x * 374761393 + z * 668265263 + seed * 2147483647);
-    h = (h ^ (h >> 13)) * 1274126177;
-    h = h ^ (h >> 16);
-    return (float)(h % 10000) / 10000.0f;
-}
-
-static float Smoothstep(float t)
-{
-    // Smooth interpolation weight for blending grid values.
-
-    return t * t * (3.0f - 2.0f * t);
-}
-
-static float SampleValueNoise2D(float x, float z)
-{
-    // Sample a 2D value-noise field by blending four hashed grid corners.
-
-    int x0 = (int)floorf(x), z0 = (int)floorf(z);
-    float tx = Smoothstep(x - x0);
-    float tz = Smoothstep(z - z0);
-
-    float h00 = HashGridValue(x0, z0, WORLD_SEED);
-    float h10 = HashGridValue(x0 + 1, z0, WORLD_SEED);
-    float h01 = HashGridValue(x0, z0 + 1, WORLD_SEED);
-    float h11 = HashGridValue(x0 + 1, z0 + 1, WORLD_SEED);
-
-    float a = h00 + tx * (h10 - h00);
-    float b = h01 + tx * (h11 - h01);
-    return a + tz * (b - a);
-}
-
-// 
 
 static float SampleHeightWithParams(float worldX, float worldZ, const BiomeParams *p)
 {
     float total = 0.0f, amp = 1.0, freq = p->frequency;
     for (int o = 0; o < p->octaves; o++)
     {
-        total += SampleValueNoise2D(worldX * freq, worldZ * freq) * amp;
+        total += Noise2D(worldX * freq, worldZ * freq, WORLD_SEED) * amp;
         amp *= p->persistence;
         freq *= 2.0f;
     }
@@ -109,13 +74,13 @@ static float SampleHeightWithParams(float worldX, float worldZ, const BiomeParam
 static float SampleTemperatureNoise(float worldX, float worldZ)
 {
     const float freq = 0.006f;
-    return SampleValueNoise2D(worldX * freq + 1000.0f, worldZ * freq + 1000.0f);
+    return Noise2D(worldX * freq + 1000.0f, worldZ * freq + 1000.0f, WORLD_SEED);
 }
 
 static float SampleMoistureNoise(float worldX, float worldZ)
 {
     const float freq = 0.006f;
-    return SampleValueNoise2D(worldX * freq + 5000.0f, worldZ * freq + 5000.0f);
+    return Noise2D(worldX * freq + 5000.0f, worldZ * freq + 5000.0f, WORLD_SEED);
 }
 
 // 
