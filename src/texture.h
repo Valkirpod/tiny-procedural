@@ -4,6 +4,6 @@
 #include "raylib.h"
 
 // Generates a tileable grayscale-ish noise texture, blended between two colors.
-Texture2D GenerateNoiseTexture(int size, int cellCount, Color colorA, Color colorB);
+Texture2D GenerateNoiseTexture(int size, Color colorA, Color colorB, int cellCount, int detailCellCount, float detailWeight);
 
 #endif

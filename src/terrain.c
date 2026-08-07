@@ -201,7 +201,7 @@ static void GenerateChunk(int cx, int cz)
 //----------------------------------------------------------------------------------
 void InitTerrain(void)
 {
-    terrainTexture = GenerateNoiseTexture(256, 64, (Color){190,190,190,255}, (Color){215,215,215,255});
+    terrainTexture = GenerateNoiseTexture(512, (Color){175,175,175,255}, (Color){245,245,245,255}, 128, 6, 0.35f);
 
     planeMaterial = LoadMaterialDefault();
     planeMaterial.maps[MATERIAL_MAP_ALBEDO].texture = terrainTexture;

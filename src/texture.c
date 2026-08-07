@@ -2,7 +2,9 @@
 #include <math.h>
 #include "noise.h"
 
-Texture2D GenerateNoiseTexture(int size, int cellCount, Color colorA, Color colorB)
+#define SEED 42
+
+Texture2D GenerateNoiseTexture(int size, Color colorA, Color colorB, int cellCount, int detailCellCount, float detailWeight)
 {
     Image image = GenImageColor(size, size, colorA);
 
@@ -13,7 +15,10 @@ Texture2D GenerateNoiseTexture(int size, int cellCount, Color colorA, Color colo
             float nx = ((float)x / size) * cellCount;
             float nz = ((float)y / size) * cellCount;
 
-            float n = Noise2DTileable(nx, nz, cellCount, 42);
+            float n1 = Noise2DTileable(nx, nz, cellCount, SEED);
+            float n2 = Noise2DTileable(nx * detailCellCount / cellCount, nz * detailCellCount / cellCount, detailCellCount, SEED + 1);
+
+            float n = n1 * (1.0f - detailWeight) + n2 * detailWeight;
 
             Color pixel = {
                 (unsigned char)(colorA.r + (colorB.r - colorA.r) * n),
@@ -26,7 +31,7 @@ Texture2D GenerateNoiseTexture(int size, int cellCount, Color colorA, Color colo
     }
 
     Texture2D texture = LoadTextureFromImage(image);
-    SetTextureFilter(texture, TEXTURE_FILTER_BILINEAR);
+    SetTextureFilter(texture, TEXTURE_FILTER_POINT);
     SetTextureWrap(texture, TEXTURE_WRAP_REPEAT);
     UnloadImage(image);
 
