@@ -7,8 +7,12 @@
 #define CHUNK_GRID_W 32
 #define CHUNK_GRID_H 32
 #define CHUNK_RES    16
-#define CHUNK_SIZE   20.0f
+#define CHUNK_SIZE   64.0f
 #define WORLD_SEED   1254
+
+#define ELEVATION_WEIGHT 55.0f
+#define ELEVATION_FREQ  0.008f
+#define CLIMATE_FREQ    0.003f
 
 typedef struct {
     Mesh mesh;
@@ -21,15 +25,6 @@ static Material planeMaterial = { 0 };
 static Texture2D terrainTexture = { 0 };
 
 // biomes
-
-typedef enum {
-    BIOME_PLAINS,
-    BIOME_HILLS,
-    BIOME_MOUNTAINS,
-    BIOME_PEAKS,
-    BIOME_DESERT,
-    BIOME_COUNT
-} BiomeType;
 
 typedef struct {
     float frequency;
@@ -50,9 +45,9 @@ static const BiomeParams biomeTable[BIOME_COUNT] = {
 
 static const BiomeType biomeLookup[3][3] = {
     // dry              temperate         wet
-    { BIOME_PEAKS,     BIOME_MOUNTAINS,  BIOME_HILLS  }, // cold
-    { BIOME_PLAINS,    BIOME_HILLS,      BIOME_HILLS  }, // temperate
-    { BIOME_DESERT,    BIOME_PLAINS,     BIOME_HILLS  }, // hot
+    { BIOME_PLAINS,     BIOME_PLAINS,  BIOME_PLAINS  }, // cold
+    { BIOME_PLAINS,    BIOME_PLAINS,      BIOME_PLAINS  }, // temperate
+    { BIOME_DESERT,    BIOME_DESERT,     BIOME_PLAINS  }, // hot
 };
 
 //----------------------------------------------------------------------------------
@@ -73,14 +68,23 @@ static float SampleHeightWithParams(float worldX, float worldZ, const BiomeParam
 
 static float SampleTemperatureNoise(float worldX, float worldZ)
 {
-    const float freq = 0.006f;
-    return Noise2D(worldX * freq + 1000.0f, worldZ * freq + 1000.0f, WORLD_SEED);
+    return Noise2D(worldX * CLIMATE_FREQ + 1000.0f, worldZ * CLIMATE_FREQ + 1000.0f, WORLD_SEED);
 }
 
 static float SampleMoistureNoise(float worldX, float worldZ)
 {
     const float freq = 0.006f;
-    return Noise2D(worldX * freq + 5000.0f, worldZ * freq + 5000.0f, WORLD_SEED);
+    return Noise2D(worldX * CLIMATE_FREQ + 5000.0f, worldZ * CLIMATE_FREQ + 5000.0f, WORLD_SEED);
+}
+
+static float SampleElevationNoise(float worldX, float worldZ)
+{
+    float e = Noise2D(worldX * ELEVATION_FREQ + 9000.0f, worldZ * ELEVATION_FREQ + 9000.0f, WORLD_SEED);
+
+    const float redistributionPower = 4.0f; // higher = flatter lowlands, sharper rare peaks
+    e = powf(e, redistributionPower);
+
+    return e;
 }
 
 // 
@@ -93,21 +97,25 @@ static int GetBucket(float value, int bucketCount)
     return b;
 }
 
-float GetTerrainHeight(float worldX, float worldZ)
+float GetTerrainHeightAndBiome(float worldX, float worldZ, BiomeType *outBiome)
 {
-    float temp = SampleTemperatureNoise(worldX, worldZ);
-    float moist = SampleMoistureNoise(worldX, worldZ);
+    float e = SampleElevationNoise(worldX, worldZ) * ELEVATION_WEIGHT;
 
+    float temp  = SampleTemperatureNoise(worldX, worldZ);
+    float moist = SampleMoistureNoise(worldX, worldZ);
     BiomeType biome = biomeLookup[GetBucket(temp, 3)][GetBucket(moist, 3)];
-    return SampleHeightWithParams(worldX, worldZ, &biomeTable[biome]);
+
+    if (e > 25.0f)      biome = BIOME_MOUNTAINS;
+    else if (e > 20.0f) biome = BIOME_HILLS;
+
+    if (outBiome) *outBiome = biome;
+
+    return e + SampleHeightWithParams(worldX, worldZ, &biomeTable[biome]);
 }
 
-static BiomeType GetBiomeAt(float n)
+float GetTerrainHeight(float worldX, float worldZ)
 {
-    int i = (int)(n * BIOME_COUNT);
-    if (i >= BIOME_COUNT) i = BIOME_COUNT - 1;
-    if (i < 0) i = 0;
-    return (BiomeType)i;
+    return GetTerrainHeightAndBiome(worldX, worldZ, NULL);
 }
 
 //----------------------------------------------------------------------------------
@@ -161,19 +169,16 @@ static void GenerateChunk(int cx, int cz)
         float worldX = localX + chunk->worldOffset.x;
         float worldZ = localZ + chunk->worldOffset.z;
 
-        float temp  = SampleTemperatureNoise(worldX, worldZ);
-        float moist = SampleMoistureNoise(worldX, worldZ);
-        BiomeType b = biomeLookup[GetBucket(temp, 3)][GetBucket(moist, 3)];
+        BiomeType b;
+        float h = GetTerrainHeightAndBiome(worldX, worldZ, &b);
+        chunk->heights[i] = h;
+        chunk->mesh.vertices[i * 3 + 1] = h;
 
         Color c = biomeTable[b].color;
         chunk->mesh.colors[i*4+0] = c.r;
         chunk->mesh.colors[i*4+1] = c.g;
         chunk->mesh.colors[i*4+2] = c.b;
         chunk->mesh.colors[i*4+3] = 255;
-
-        float h = GetTerrainHeight(worldX, worldZ);
-        chunk->heights[i] = h;
-        chunk->mesh.vertices[i * 3 + 1] = h;
     }
 
     RecalculateNormals(&chunk->mesh, chunk->heights, vertsPerSide, CHUNK_SIZE / (float)CHUNK_RES);
