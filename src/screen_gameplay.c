@@ -109,6 +109,11 @@ void DrawGameplayScreen(void)
         DrawText(TextFormat("X: %.2f, Y: %.2f, Z: %.2f", player.position.x, player.position.y, player.position.z), 260 + 30, GetScreenHeight() - 90 + 10, 20, LIGHTGRAY);
         DrawText(TextFormat("Grounded: %s", player.grounded ? "YES" : "NO"), 260 + 30, GetScreenHeight() - 90 + 35, 20, LIGHTGRAY);
         DrawText(TextFormat("Air Time: %.2f s", player.air_time), 260 + 30, GetScreenHeight() - 90 + 60, 20, LIGHTGRAY);
+
+        DrawRectangle(260 + 20, GetScreenHeight() - 90 - 80 - 5, 280, 80, Fade(BLACK, 0.7f));
+        BiomeType b;
+        GetTerrainHeightAndBiome(player.position.x, player.position.z, &b);
+        DrawText(TextFormat("Biome: %s", GetBiomeName(b)), 260 + 30, GetScreenHeight() - 90 - 80 - 5 + 10, 20, GRAY);
     };
 }
 

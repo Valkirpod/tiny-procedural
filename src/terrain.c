@@ -12,7 +12,7 @@
 
 #define ELEVATION_WEIGHT 55.0f
 #define ELEVATION_FREQ  0.008f
-#define CLIMATE_FREQ    0.003f
+#define CLIMATE_FREQ    0.002f
 
 typedef struct {
     Mesh mesh;
@@ -36,19 +36,47 @@ typedef struct {
 
 static const BiomeParams biomeTable[BIOME_COUNT] = {
     //freq      persist oct heightscale color
-    { 0.02f,    0.6f,   2,  3.8f,       {75.0f, 235.0f, 75.0f}},    // plains
-    { 0.03f,    0.7f,   3,  4.5f,       {25.0f, 250.0f, 0.0f}},      // hills
-    { 0.005f,    0.95f,  6,  6.0f,      {125.0f, 125.0f, 155.0f}},      // mountains
-    { 0.015f,    0.95f,  6,  8.0f,      {255.0f, 255.0f, 255.0f}},      // peaks
-    { 0.02f,    0.6f,   2,  3.8f,       {222.0f, 222.0f, 0.0f}},      // desert
+    { 0.02f,    0.6f,   2,  1.8f,       {100.0f, 222.0f, 100.0f}},    // plains
+    { 0.1f,    0.85f,   4,  2.4f,       {100.0f, 100.0f, 125.0f}},      // hills
+    { 0.01f,    0.95f,  6,  4.8f,      {125.0f, 125.0f, 155.0f}},      // mountains
+    { 0.05f,    0.95f,  6,  8.8f,      {255.0f, 255.0f, 255.0f}},      // peaks
+    { 0.01f,    0.6f,   1,  1.0f,       {255.0f, 244.0f, 200.0f}},      // desert
+    { 0.04f,    0.6f,   2,  2.2f,       {200.0f, 222.0f, 100.0f}},      // steppes
+    { 0.01f,    0.95f,   4,  2.4f,       {0.0f, 200.0f, 0.0f}},      // jungle
+    { 0.01f,    0.95f,   4,  2.4f,       {100.0f, 200.0f, 100.0f}},      // forest
+    { 0.02f,    0.6f,   2,  1.8f,       {255.0f, 255.0f, 255.0f}},      // tundra
+    { 0.02f,    0.6f,   2,  1.8f,       {255.0f, 255.0f, 255.0f}},      // taiga
+    { 0.03f,    0.9f,   8,  3.0f,       {200.0f, 255.0f, 255.0f}},      // icy
 };
 
 static const BiomeType biomeLookup[3][3] = {
     // dry              temperate         wet
-    { BIOME_PLAINS,     BIOME_PLAINS,  BIOME_PLAINS  }, // cold
-    { BIOME_PLAINS,    BIOME_PLAINS,      BIOME_PLAINS  }, // temperate
-    { BIOME_DESERT,    BIOME_DESERT,     BIOME_PLAINS  }, // hot
+    { BIOME_ICY,     BIOME_TUNDRA,  BIOME_TAIGA  }, // cold
+    { BIOME_STEPPES,    BIOME_PLAINS,      BIOME_FOREST  }, // temperate
+    { BIOME_DESERT,    BIOME_STEPPES,     BIOME_JUNGLE  }, // hot
 };
+
+#define PEAKS_ELEVATION     40.0f
+#define MOUNTAIN_ELEVATION  28.0f
+#define HILLS_ELEVATION     15.0f
+
+const char *GetBiomeName(BiomeType b)
+{
+    switch (b) {
+        case BIOME_PLAINS:    return "PLAINS";
+        case BIOME_HILLS:     return "HILLS";
+        case BIOME_MOUNTAINS: return "MOUNTAINS";
+        case BIOME_PEAKS:     return "PEAKS";
+        case BIOME_DESERT:    return "DESERT";
+        case BIOME_STEPPES:   return "STEPPES";
+        case BIOME_JUNGLE:    return "JUNGLE";
+        case BIOME_FOREST:     return "FOREST";
+        case BIOME_TUNDRA:      return "TUNDRA";
+        case BIOME_TAIGA:       return "TAIGA";
+        case BIOME_ICY:         return "ICY";
+        default:              return "UNKNOWN";
+    }
+}
 
 //----------------------------------------------------------------------------------
 // Noise
@@ -105,8 +133,9 @@ float GetTerrainHeightAndBiome(float worldX, float worldZ, BiomeType *outBiome)
     float moist = SampleMoistureNoise(worldX, worldZ);
     BiomeType biome = biomeLookup[GetBucket(temp, 3)][GetBucket(moist, 3)];
 
-    if (e > 25.0f)      biome = BIOME_MOUNTAINS;
-    else if (e > 20.0f) biome = BIOME_HILLS;
+    if (e > PEAKS_ELEVATION) biome = BIOME_PEAKS;
+    else if (e > MOUNTAIN_ELEVATION)      biome = BIOME_MOUNTAINS;
+    else if (e > HILLS_ELEVATION) biome = BIOME_HILLS;
 
     if (outBiome) *outBiome = biome;
 

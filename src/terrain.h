@@ -10,8 +10,16 @@ typedef enum {
     BIOME_MOUNTAINS,
     BIOME_PEAKS,
     BIOME_DESERT,
+    BIOME_STEPPES,
+    BIOME_JUNGLE,
+    BIOME_FOREST,
+    BIOME_TUNDRA,
+    BIOME_TAIGA,
+    BIOME_ICY,
     BIOME_COUNT
 } BiomeType;
+
+const char *GetBiomeName(BiomeType b);
 
 void InitTerrain(void);
 void DrawTerrain(bool wireframe);
