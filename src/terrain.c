@@ -4,8 +4,8 @@
 #include "texture.h"
 #include "noise.h"
 
-#define CHUNK_GRID_W 32
-#define CHUNK_GRID_H 32
+#define MAX_CHUNKS   2048*100
+#define RENDER_RANGE 6
 #define CHUNK_RES    16
 #define CHUNK_SIZE   64.0f
 #define WORLD_SEED   1254
@@ -15,12 +15,14 @@
 #define CLIMATE_FREQ    0.002f
 
 typedef struct {
+    int x, z;
     Mesh mesh;
     float *heights;
     Vector3 worldOffset;
 } TerrainChunk;
 
-static TerrainChunk chunks[CHUNK_GRID_W][CHUNK_GRID_H];
+static int activeChunks = 0;
+static TerrainChunk chunks[MAX_CHUNKS];
 static Material planeMaterial = { 0 };
 static Texture2D terrainTexture = { 0 };
 
@@ -173,9 +175,24 @@ static void RecalculateNormals(Mesh *mesh, float *heights, int vertsPerSide, flo
     }
 }
 
+static TerrainChunk *FindChunk(int cx, int cz)
+{
+    for (int i = 0; i < activeChunks; i++)
+    {
+        if (chunks[i].x == cx && chunks[i].z == cz)
+            return &chunks[i];
+    }
+    return NULL;
+}
+
 static void GenerateChunk(int cx, int cz)
 {
-    TerrainChunk *chunk = &chunks[cx][cz];
+    if (FindChunk(cx, cz)) return;
+    if (activeChunks >= MAX_CHUNKS) return;
+
+    TerrainChunk *chunk = &chunks[activeChunks++];
+    chunk->x = cx;
+    chunk->z = cz;
 
     chunk->mesh = GenMeshPlane(CHUNK_SIZE, CHUNK_SIZE, CHUNK_RES, CHUNK_RES);
 
@@ -185,9 +202,9 @@ static void GenerateChunk(int cx, int cz)
     chunk->mesh.colors = (unsigned char *)MemAlloc(vertexCount * 4 * sizeof(unsigned char));
 
     chunk->worldOffset = (Vector3){
-        cx * CHUNK_SIZE - (CHUNK_GRID_W * CHUNK_SIZE) / 2.0f + CHUNK_SIZE / 2.0f,
+        cx * CHUNK_SIZE + CHUNK_SIZE * 0.5f,
         0.0f,
-        cz * CHUNK_SIZE - (CHUNK_GRID_H * CHUNK_SIZE) / 2.0f + CHUNK_SIZE / 2.0f
+        cz * CHUNK_SIZE + CHUNK_SIZE * 0.5f
     };
 
     for (int i = 0; i < vertexCount; i++)
@@ -225,6 +242,17 @@ static void GenerateChunk(int cx, int cz)
     }
 }
 
+static void UnloadChunk(int i)
+{
+    if (i < 0 || i >= activeChunks) return;
+
+    UnloadMesh(chunks[i].mesh);
+    if (chunks[i].heights) MemFree(chunks[i].heights);
+    
+    chunks[i] = chunks[activeChunks - 1];
+    activeChunks--;
+}
+
 //----------------------------------------------------------------------------------
 // 
 //----------------------------------------------------------------------------------
@@ -234,22 +262,42 @@ void InitTerrain(void)
 
     planeMaterial = LoadMaterialDefault();
     planeMaterial.maps[MATERIAL_MAP_ALBEDO].texture = terrainTexture;
+}
 
-    for (int cx = 0; cx < CHUNK_GRID_W; cx++)
-        for (int cz = 0; cz < CHUNK_GRID_H; cz++)
-            GenerateChunk(cx, cz);
+void UpdateTerrainStreaming(float playerX, float playerZ)
+{
+    int pcx = (int)floorf(playerX / CHUNK_SIZE);
+    int pcz = (int)floorf(playerZ / CHUNK_SIZE);
+
+    int radius = RENDER_RANGE;
+
+    for (int dz = -radius; dz <= radius; dz++)
+        for (int dx = -radius; dx <= radius; dx++)
+            GenerateChunk(pcx + dx, pcz + dz);
+
+    for (int i = activeChunks - 1; i >= 0; i--)
+    {
+        int dx = chunks[i].x - pcx;
+        int dz = chunks[i].z - pcz;
+
+        int dist = (abs(dx) > abs(dz)) ? abs(dx) : abs(dz);
+
+        if (dist > RENDER_RANGE + 1)
+        {
+            UnloadChunk(i);
+        }
+    }
 }
 
 void DrawTerrain(bool wireframe)
 {
     if (wireframe) rlEnableWireMode();
 
-    for (int cx = 0; cx < CHUNK_GRID_W; cx++)
-        for (int cz = 0; cz < CHUNK_GRID_H; cz++)
-        {
-            Matrix t = MatrixTranslate(chunks[cx][cz].worldOffset.x, 0.0f, chunks[cx][cz].worldOffset.z);
-            DrawMesh(chunks[cx][cz].mesh, planeMaterial, t);
-        }
+    for (int i = 0; i < activeChunks; i++)
+    {
+        Matrix t = MatrixTranslate(chunks[i].worldOffset.x, 0.0f, chunks[i].worldOffset.z);
+        DrawMesh(chunks[i].mesh, planeMaterial, t);
+    }
 
     if (wireframe) rlDisableWireMode();
 }
@@ -259,27 +307,23 @@ void DrawChunkBoundaries(void)
     Color boundaryColor = Fade(GOLD, 0.85f);
     float height = 50.0f;
 
-    for (int cx = 0; cx < CHUNK_GRID_W; cx++)
+    for (int i = 0; i < activeChunks; i++)
     {
-        for (int cz = 0; cz < CHUNK_GRID_H; cz++)
-        {
-            TerrainChunk *chunk = &chunks[cx][cz];
-            Vector3 center = { chunk->worldOffset.x, height/2.0f, chunk->worldOffset.z };
-            Vector3 size = { CHUNK_SIZE, height, CHUNK_SIZE };
+        TerrainChunk *chunk = &chunks[i];
+        Vector3 center = { chunk->worldOffset.x, height/2.0f, chunk->worldOffset.z };
+        Vector3 size = { CHUNK_SIZE, height, CHUNK_SIZE };
 
-            DrawCubeWires(center, size.x, size.y, size.z, boundaryColor);
-        }
+        DrawCubeWires(center, size.x, size.y, size.z, boundaryColor);
     }
 }
 
 void UnloadTerrain(void)
 {
-    for (int cx = 0; cx < CHUNK_GRID_W; cx++)
-        for (int cz = 0; cz < CHUNK_GRID_H; cz++)
-        {
-            UnloadMesh(chunks[cx][cz].mesh);
-            MemFree(chunks[cx][cz].heights);
-        }
+    for (int i = 0; i < activeChunks; i++)
+    {
+        UnloadMesh(chunks[i].mesh);
+        MemFree(chunks[i].heights);
+    }
     UnloadMaterial(planeMaterial);
     if (terrainTexture.id > 0) UnloadTexture(terrainTexture);
 }

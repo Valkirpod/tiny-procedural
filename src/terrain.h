@@ -22,6 +22,7 @@ typedef enum {
 const char *GetBiomeName(BiomeType b);
 
 void InitTerrain(void);
+void UpdateTerrainStreaming(float playerX, float playerZ);
 void DrawTerrain(bool wireframe);
 void DrawTerrainChunkBoundaries(void);
 void UnloadTerrain(void);

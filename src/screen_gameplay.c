@@ -82,6 +82,7 @@ void DrawGameplayScreen(void)
             rlEnableWireMode();
         }
 
+        UpdateTerrainStreaming(player.position.x, player.position.z);
         DrawTerrain(wireframeShow);
         
         if (wireframeShow)
