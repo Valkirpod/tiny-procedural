@@ -22,6 +22,7 @@ static Player player;
 
 static bool debugShow = false;
 static bool wireframeShow = false;
+static bool speedBoost = false;
 
 //----------------------------------------------------------------------------------
 // Helper Functions
@@ -69,6 +70,11 @@ void UpdateGameplayScreen(void)
     {
         wireframeShow = !wireframeShow;
         TraceLog(LOG_INFO, "Wireframe mode %s", wireframeShow ? "ON" : "OFF");
+    } else if (IsKeyPressed(KEY_SEMICOLON) && debugShow)
+    {
+        speedBoost = !speedBoost;
+        player.speed_multiplier = speedBoost ? 20.0f : 1.0f;
+        TraceLog(LOG_INFO, "Speed boost %s", speedBoost ? "ON" : "OFF");
     }
 }
 
@@ -103,8 +109,9 @@ void DrawGameplayScreen(void)
         DrawText(TextFormat("RAM: %.1f MB", ramMB), 20, GetScreenHeight() - 30, 20, SKYBLUE);
 
         DrawRectangle(10, GetScreenHeight() - 90 - 80 - 5, 260, 80, Fade(BLACK, 0.7f));
-        DrawText(TextFormat("Debug Controls:"), 20, GetScreenHeight() - 90 - 80 - 5 + 10, 20, GRAY);
-        DrawText(TextFormat("   L - Wireframe: %s", wireframeShow ? "ON" : "OFF"), 20, GetScreenHeight() - 90 - 80 - 5 + 35, 20, GRAY);
+        DrawText(TextFormat("Debug Controls:"), 20,                                     GetScreenHeight() - 90 - 80 - 5 + 10, 20, GRAY);
+        DrawText(TextFormat("   L - Wireframe: %s", wireframeShow ? "ON" : "OFF"), 20,  GetScreenHeight() - 90 - 80 - 5 + 35, 20, GRAY);
+        DrawText(TextFormat("   ; - Speed Boost: %s", speedBoost ? "ON" : "OFF"), 20,   GetScreenHeight() - 90 - 80 - 5 + 50, 20, GRAY);
 
         DrawRectangle(260 + 20, GetScreenHeight() - 90, 280, 80, Fade(BLACK, 0.7f));
         DrawText(TextFormat("X: %.2f, Y: %.2f, Z: %.2f", player.position.x, player.position.y, player.position.z), 260 + 30, GetScreenHeight() - 90 + 10, 20, LIGHTGRAY);

@@ -98,6 +98,7 @@ void InitPlayer(Player *player, Vector3 startPos)
     player->current_fov = FIELD_OF_VIEW;
     player->current_bob_frequency = BOB_FREQ;
     player->current_speed = SPRINT_SPEED;
+    player->speed_multiplier = 1.0f;
 }
 
 void UpdatePlayer(Player *player)
@@ -149,12 +150,12 @@ void UpdatePlayer(Player *player)
     // sprint
     if (IsKeyDown(KEY_LEFT_SHIFT) && player->grounded)
     {
-        player->current_speed = SPRINT_SPEED;
+        player->current_speed = SPRINT_SPEED * player->speed_multiplier;
         player->current_bob_frequency = SPRINT_BOB_FREQ;
     }
     else
     {
-        player->current_speed = MOVE_SPEED;
+        player->current_speed = MOVE_SPEED * player->speed_multiplier;
         player->current_bob_frequency = BOB_FREQ;   
     }
 
