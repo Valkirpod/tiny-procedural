@@ -16,6 +16,7 @@ typedef struct {
     float current_fov;
     float current_speed;
     float current_bob_frequency;
+    float speed_multiplier;
 } Player;
 
 void InitPlayer(Player *player, Vector3 startPos);
